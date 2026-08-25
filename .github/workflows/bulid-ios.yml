@@ -1,0 +1,27 @@
+name: Build CDDA iOS
+on:
+  push:
+  workflow_dispatch:  # 保留这个按钮，方便手动点击运行
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install deps
+        run: brew install sdl2 sdl2_ttf sdl2_image sdl2_mixer gettext
+      - name: Build Archive
+        run: |
+          xcodebuild archive \
+            -workspace CDDA.xcworkspace \
+            -scheme Cataclysm-DDA \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath CDDA.xcarchive \
+            CODE_SIGNING_ALLOWED=NO
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CDDA-Build
+          path: CDDA.xcarchive

@@ -7,16 +7,35 @@ jobs:
   build:
     runs-on: macos-latest
     steps:
+      # 1. 先拉取代码，但先不拉子模块
       - uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
-      
+          submodules: false
+
+      # 2. 自动修复 .gitmodules：删除那个损坏的 Cataclysm-BN 条目
+      - name: Fix broken submodule entry
+        run: |
+          if grep -q "Cataclysm-BN" .gitmodules; then
+            echo "发现损坏的子模块条目，正在删除..."
+            sed -i '/Cataclysm-BN/d' .gitmodules
+          fi
+          cat .gitmodules  # 打印一下确认
+
+      # 3. 手动初始化剩余正常的子模块
+      - name: Init submodules
+        run: |
+          git submodule sync
+          git submodule update --init --recursive || echo "忽略非关键子模块错误"
+
+      # 4. 安装依赖
       - name: Install deps
         run: brew install sdl2 sdl2_ttf sdl2_image sdl2_mixer gettext
-      
-      - name: List all Schemes (调试找名字)
+
+      # 5. 列出所有编译方案（用于调试）
+      - name: List all Schemes
         run: xcodebuild -workspace CDDA.xcworkspace -list
-      
+
+      # 6. 编译打包（使用 CDDA 方案）
       - name: Build Archive
         run: |
           xcodebuild archive \
@@ -29,7 +48,8 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             PROVISIONING_PROFILE_SPECIFIER="" \
             OTHER_CODE_SIGN_FLAGS="--force"
-      
+
+      # 7. 上传产物
       - uses: actions/upload-artifact@v4
         with:
           name: CDDA-Build
